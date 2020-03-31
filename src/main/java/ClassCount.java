@@ -55,6 +55,8 @@ public class ClassCount {
                 .reduceByKey(Long::sum); // <-- REDUCE PHASE (R2)
 
         System.out.println("VERSION WITH DETERMINISTIC PARTITIONS");
+
+        // output pairs sorted by key
         System.out.print("Output pairs =");
         count
                 .sortByKey()
@@ -72,23 +74,25 @@ public class ClassCount {
                     return tokens[1];
                 })
                 .mapPartitionsToPair((partition) -> {    // <-- REDUCE PHASE (R1)
+                    // [ label1, label2, ... ] --> [ (label1, count1), (label2, count2), ... ]
                     long partitionSize = 0;
                     HashMap<String, Long> counts = new HashMap<>();
                     while (partition.hasNext()){
                         String label = partition.next();
                         counts.put(label, counts.getOrDefault(label, 0L) + 1L);
-                        partitionSize++;
+                        partitionSize++; // count elements in partition
                     }
                     ArrayList<Tuple2<String, Long>> pairs = new ArrayList<>();
                     for (Map.Entry<String, Long> e : counts.entrySet()) {
                         pairs.add(new Tuple2<>(e.getKey(), e.getValue()));
                     }
-                    pairs.add(new Tuple2<>("partitionSize", partitionSize));
+                    pairs.add(new Tuple2<>("partitionSize", partitionSize)); // add pair containing partition size
                     return pairs.iterator();
                 })
                 .groupByKey()     // <-- REDUCE PHASE (R2)
                 .mapToPair((pair) -> {
                     if (pair._1().equals("partitionSize")) {
+                        // for pairs containing partition size find max instead of sum
                         long max = 0;
                         for (long partitionSize: pair._2())
                             max = Math.max(partitionSize, max);
@@ -103,6 +107,7 @@ public class ClassCount {
                     }
                 });
 
+        // Find most frequent class
         Tuple2<String, Long> mostFrequent = count
                 .filter((pair) -> !pair._1().equals("maxPartitionSize"))
                 .reduce((x, y) -> {
@@ -117,6 +122,7 @@ public class ClassCount {
                         return y;
                 });
 
+        // Find max partition size
         Long maxPartitionSize = count
                 .filter((pair) -> pair._1().equals("maxPartitionSize"))
                 .map(Tuple2::_2)
