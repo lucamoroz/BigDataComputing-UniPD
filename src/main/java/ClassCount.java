@@ -58,15 +58,13 @@ public class ClassCount {
         // VERSION WITH SPARK PARTITIONS
         lines = lines.repartition(nPartitions);
 
-        genreCount = lines.mapPartitionsToPair((part) -> {
+        genreCount = lines
+                .mapPartitionsToPair((part) -> {
 
                     // discard ids and collect movie genres
                     ArrayList<String> genres = new ArrayList<>();
                     while (part.hasNext()) {
-                        String[] tokens = part.next().split(" ");
-                        for (int i = 1; i < tokens.length; i+=2) {
-                            genres.add(tokens[i]);
-                        }
+                        genres.add(part.next().split(" ")[1]);
                     }
 
                     // count occurrences of genres within the partition
@@ -74,8 +72,8 @@ public class ClassCount {
                     for(String genre : genres)
                         genreOcc.put(genre, 1 + genreOcc.getOrDefault(genre, 0L));
 
-                     return getTupleIterator(genreOcc);
-        })
+                    return getTupleIterator(genreOcc);
+                })
                 .reduceByKey(Long::sum);
 
         System.out.println("VERSION WITH SPARK PARTITIONS");
