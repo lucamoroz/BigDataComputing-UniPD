@@ -33,7 +33,7 @@ public class ClassCount {
                     String genre = line.split(" ")[1];
 
                     // map id into range 0..N^1/2
-                    id = (long) (id % Math.pow(N, 0.5));
+                    id = id % nPartitions;
                     return new Tuple2<>(id, genre);
                 })
                 .groupByKey()
@@ -60,11 +60,13 @@ public class ClassCount {
 
         genreCount = lines
                 .mapPartitionsToPair((part) -> {
+                    long partitionSize = 0;
 
                     // discard ids and collect movie genres
                     ArrayList<String> genres = new ArrayList<>();
                     while (part.hasNext()) {
                         genres.add(part.next().split(" ")[1]);
+                        partitionSize++;
                     }
 
                     // count occurrences of genres within the partition
@@ -72,12 +74,20 @@ public class ClassCount {
                     for(String genre : genres)
                         genreOcc.put(genre, 1 + genreOcc.getOrDefault(genre, 0L));
 
+                    genreOcc.put("maxPartitionSize", partitionSize); // to find biggest partition
+
                     return getTupleIterator(genreOcc);
-                })
-                .reduceByKey(Long::sum);
+                });
+
 
         System.out.println("VERSION WITH SPARK PARTITIONS");
-        genreCount.collect().stream()
+
+        // print most frequent class
+        genreCount.filter((p) -> !p._1().equals("maxPartitionSize"))
+                .reduceByKey(Long::sum)
+                .collect() // at most N_GENRES pairs
+                .stream()
+                .sorted(Comparator.comparing(Tuple2::_1)) // favor the smaller class in alphabetical order
                 .max(Comparator.comparingLong(Tuple2::_2))
                 .ifPresentOrElse(
                         (mostFreqPair) -> {
@@ -87,10 +97,13 @@ public class ClassCount {
                         () -> System.out.println("Empty RDD")
                 );
 
-        lines.glom().collect().stream()
-                .max(Comparator.comparingInt(List::size))
+        // print size of biggest partition
+        genreCount.filter((p) -> p._1().equals("maxPartitionSize"))
+                .collect() // at most nPartitions pairs
+                .stream()
+                .max((Comparator.comparingLong(Tuple2::_2)))
                 .ifPresentOrElse(
-                        (maxSizeList) -> System.out.println("Max partition size: " + maxSizeList.size()),
+                        (tuple) -> System.out.println("Max partition size: " + tuple._2()),
                         () -> System.out.println("Empty RDD")
                 );
     }
