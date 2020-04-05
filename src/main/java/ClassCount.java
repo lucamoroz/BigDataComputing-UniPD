@@ -4,6 +4,7 @@ import org.apache.spark.api.java.JavaRDD;
 import org.apache.spark.api.java.JavaSparkContext;
 import scala.Tuple2;
 
+import java.io.Serializable;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -49,9 +50,8 @@ public class ClassCount {
 
 
         // collect is required, otherwise keys are sorted locally within each task
-
         String sPairs = genreCount.sortByKey().collect().stream()
-                .map((pair) -> "(" + pair._1() + "," + pair._2().toString() + ")")
+                .map(Tuple2::toString)
                 .collect(Collectors.joining(" "));
 
         System.out.println("VERSION WITH DETERMINISTIC PARTITIONS");
@@ -84,25 +84,11 @@ public class ClassCount {
 
         System.out.println("VERSION WITH SPARK PARTITIONS");
 
-        // print most frequent class
-        genreCount.filter((p) -> !p._1().equals("maxPartitionSize"))
+        // print most frequent genre
+        Tuple2<String, Long> maxGenre = genreCount.filter((p) -> !p._1().equals("maxPartitionSize"))
                 .reduceByKey(Long::sum)
-                .collect() // at most N_GENRES pairs
-                .stream()
-                .max((p1, p2) -> {
-                    if (p1._2() > p2._2())
-                        return 1;
-                    else if (p1._2() < p2._2())
-                        return -1;
-                    return p2._1().compareTo(p1._1()); // favor the smaller class in alphabetical order
-                })
-                .ifPresentOrElse(
-                        (mostFreqPair) -> {
-                            System.out.println("Most frequent frequent class = "
-                                    + "(" + mostFreqPair._1() + "," + mostFreqPair._2() + ")");
-                        },
-                        () -> System.out.println("Empty RDD")
-                );
+                .max(new CountComparator());
+        System.out.println("Most frequent class = " + maxGenre.toString());
 
         // print size of biggest partition
         genreCount.filter((p) -> p._1().equals("maxPartitionSize"))
@@ -123,4 +109,16 @@ public class ClassCount {
         return pairs.iterator();
     }
 
+    static class CountComparator implements Serializable, Comparator<Tuple2<String, Long>> {
+
+        // Returns the pair with higher "long". If the values are equal, then consider the name in alphabetical order
+        @Override
+        public int compare(Tuple2<String, Long> p1, Tuple2<String, Long> p2) {
+            if (p1._2() > p2._2())
+                return 1;
+            else if (p1._2() < p2._2())
+                return -1;
+            return p2._1().compareTo(p1._1()); // favor the smaller class in alphabetical order
+        }
+    }
 }
