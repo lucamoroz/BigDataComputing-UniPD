@@ -27,15 +27,18 @@ public class ClassCount {
         // VERSION WITH DETERMINISTIC PARTITIONS
         genreCount = lines
                 .mapToPair((line) -> {
-                    long id = Long.parseLong(line.split(" ")[0]);
-                    String genre = line.split(" ")[1];
+                    // convert lines "id genre" into pairs (k, genre) partitioned in 0..nPartitions
+                    String[] idGenre = line.split(" ");
+                    long id = Long.parseLong(idGenre[0]);
+                    String genre = idGenre[1];
 
-                    // map id into range 0..N^1/2
+                    // map id into range 0..nPartitions
                     id = id % nPartitions;
                     return new Tuple2<>(id, genre);
                 })
                 .groupByKey()
                 .flatMapToPair((pair) -> {
+                    // count occurrences of each genre withing the partition
                     HashMap<String, Long> genreOcc = new HashMap<>();
                     for(String genre : pair._2())
                         genreOcc.put(genre, 1 + genreOcc.getOrDefault(genre, 0L));
@@ -43,6 +46,7 @@ public class ClassCount {
                     return getTupleIterator(genreOcc);
                 })
                 .reduceByKey(Long::sum);
+
 
         // collect is required, otherwise keys are sorted locally within each task
 
@@ -57,23 +61,23 @@ public class ClassCount {
         lines = lines.repartition(nPartitions);
 
         genreCount = lines
-                .mapPartitionsToPair((part) -> {
-                    long partitionSize = 0;
+                .mapPartitionsToPair((partition) -> {
+                    long partitionSize = 0; // required to find the biggest partition
 
                     // discard ids and collect movie genres
                     ArrayList<String> genres = new ArrayList<>();
-                    while (part.hasNext()) {
-                        genres.add(part.next().split(" ")[1]);
+                    while (partition.hasNext()) {
+                        // each token is a string of the type "id genre"
+                        genres.add(partition.next().split(" ")[1]);
                         partitionSize++;
                     }
 
-                    // count occurrences of genres within the partition
+                    // count occurrences of each genre within the partition
                     HashMap<String, Long> genreOcc = new HashMap<>();
                     for(String genre : genres)
                         genreOcc.put(genre, 1 + genreOcc.getOrDefault(genre, 0L));
 
-                    genreOcc.put("maxPartitionSize", partitionSize); // to find biggest partition
-
+                    genreOcc.put("maxPartitionSize", partitionSize); // store current partition size
                     return getTupleIterator(genreOcc);
                 });
 
