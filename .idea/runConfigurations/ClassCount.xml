@@ -1,8 +1,8 @@
 <component name="ProjectRunConfigurationManager">
-  <configuration default="false" name="WordCount" type="Application" factoryName="Application" nameIsGenerated="true">
-    <option name="MAIN_CLASS_NAME" value="WordCount" />
+  <configuration default="false" name="ClassCount" type="Application" factoryName="Application">
+    <option name="MAIN_CLASS_NAME" value="ClassCount" />
     <module name="BigDataComputing-UniPD.main" />
-    <option name="PROGRAM_PARAMETERS" value="4 data/wordcount_dataset.txt" />
+    <option name="PROGRAM_PARAMETERS" value="4 data/classcount_dataset_10000.txt" />
     <option name="VM_PARAMETERS" value="-Dspark.master=&quot;local[*]&quot;" />
     <method v="2">
       <option name="Make" enabled="true" />
