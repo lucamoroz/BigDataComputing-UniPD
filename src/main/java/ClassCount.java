@@ -21,12 +21,10 @@ public class ClassCount {
 
         int nPartitions = Integer.parseInt(args[0]);
         JavaRDD<String> lines = sc.textFile(args[1]);
-        long N = lines.count();
 
         JavaPairRDD<String, Long> genreCount;
 
         // VERSION WITH DETERMINISTIC PARTITIONS
-
         genreCount = lines
                 .mapToPair((line) -> {
                     long id = Long.parseLong(line.split(" ")[0]);
@@ -87,8 +85,13 @@ public class ClassCount {
                 .reduceByKey(Long::sum)
                 .collect() // at most N_GENRES pairs
                 .stream()
-                .sorted(Comparator.comparing(Tuple2::_1)) // favor the smaller class in alphabetical order
-                .max(Comparator.comparingLong(Tuple2::_2))
+                .max((p1, p2) -> {
+                    if (p1._2() > p2._2())
+                        return 1;
+                    else if (p1._2() < p2._2())
+                        return -1;
+                    return p2._1().compareTo(p1._1()); // favor the smaller class in alphabetical order
+                })
                 .ifPresentOrElse(
                         (mostFreqPair) -> {
                             System.out.println("Most frequent frequent class = "
