@@ -1,3 +1,8 @@
+/**
+ * Homework 1 - Big Data Computing 19/20
+ * Group 15 - Moroldo Luca, Pham Francesco, Occhipinti Michele
+ */
+
 import org.apache.spark.SparkConf;
 import org.apache.spark.api.java.JavaPairRDD;
 import org.apache.spark.api.java.JavaRDD;
