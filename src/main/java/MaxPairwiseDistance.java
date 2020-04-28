@@ -99,8 +99,16 @@ public class MaxPairwiseDistance {
             selectedPoints.add(point);
         }
 
-        // return maximum pairwise distance in the k selected points
-        return exactMPD(selectedPoints);
+        // find maximum distance d(x,y), over all x in selected points and y in input points
+        double maxDistance = 0;
+        for (Vector selectedPoint : selectedPoints) {
+            for (Vector inputPoint : inputPoints) {
+                double dist = Vectors.sqdist(selectedPoint, inputPoint);
+                if (dist > maxDistance)
+                    maxDistance = dist;
+            }
+        }
+        return Math.sqrt(maxDistance);
     }
 
     /**
