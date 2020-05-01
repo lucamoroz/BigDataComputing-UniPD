@@ -2,6 +2,8 @@ import java.io.*;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
 import java.util.Random;
 
 import org.apache.spark.mllib.linalg.Vector;
@@ -11,7 +13,7 @@ public class MaxPairwiseDistance {
 
     private static final long SEED = 1234004;
 
-    public static void main(String[] args) throws IOException {
+    public static void main(String[] args) {
 
         if (args.length != 2) {
             throw new IllegalArgumentException("USAGE: file_path k_coreset");
@@ -19,9 +21,15 @@ public class MaxPairwiseDistance {
 
         // Read points from a file whose name is provided as args[0]
         String filename = args[0];
+        ArrayList<Vector> inputPoints = new ArrayList<>();
+        try {
+            inputPoints = readVectorsSeq(filename);
+        } catch (IOException e) {
+            System.out.println("Failed to read input file: " + e.getMessage());
+        }
+
         // The size of the coreset k is given in args[1]
         int kCoreset = Integer.parseInt(args[1]);
-        ArrayList<Vector> inputPoints = readVectorsSeq(filename);
 
         long startTime, endTime, duration;
         double maxDistance;
@@ -88,16 +96,9 @@ public class MaxPairwiseDistance {
      * @param k Size of the coreset, larger k gives better approximation but longer computation.
      * @return Approximation of maximum L2 euclidean distance between any pair of points
      */
-    public static double twoApproxMPD(ArrayList<Vector> inputPoints, int k) {
-        Random randomGenerator = new Random(SEED);
-        int size = inputPoints.size();
-        ArrayList<Vector> selectedPoints = new ArrayList<>();
+    public static double twoApproxMPD(ArrayList<Vector> inputPoints, int k) throws IllegalArgumentException {
 
-        // select k random points
-        for (int i=0; i<k; i++) {
-            Vector point = inputPoints.get(randomGenerator.nextInt(size));
-            selectedPoints.add(point);
-        }
+        List<Vector> selectedPoints = pickNDistinctRandomElements(inputPoints, k);
 
         // find maximum distance d(x,y), over all x in selected points and y in input points
         double maxDistance = 0;
@@ -133,7 +134,7 @@ public class MaxPairwiseDistance {
             minDistance[i] = Vectors.sqdist(inputPoints.get(selected), inputPoints.get(i));
 
         // selection of k centers using farthest first traversal algorithm
-        for (int i=0; i<k; i++) {
+        for (int i=1; i<k; i++) {
             // select point farthest from the selected centers
             selected = 0;
             for (int j=0; j<size; j++) {
@@ -153,6 +154,25 @@ public class MaxPairwiseDistance {
         return selectedPoints;
     }
 
+    /**
+     * Select n distinct random elements from a list
+     * @param list List from which pick the elements
+     * @param n Number of elements to pick
+     * @param <E> Type of elements in the list
+     * @return n distinct elements from the list picked at random
+     */
+    private static <E> List<E> pickNDistinctRandomElements(List<E> list, int n) {
+        Random randomGenerator = new Random(SEED);
+        int length = list.size();
+
+        if (n > length)
+            throw new IllegalArgumentException("Assertion: trying to pick more elements than list size");
+
+        for (int i = length - 1; i >= length - n; --i) {
+            Collections.swap(list, i , randomGenerator.nextInt(i + 1));
+        }
+        return list.subList(length - n, length);
+    }
 
 
     // &&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&
