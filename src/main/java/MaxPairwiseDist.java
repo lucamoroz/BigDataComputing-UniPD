@@ -96,7 +96,9 @@ public class MaxPairwiseDist {
         int lastCenter = RAND.nextInt(S.size());
         C.add(S.get(lastCenter));
 
-        Double[] pointCDistance = new Double[S.size()];
+        double[] pointCDistance = new double[S.size()];
+        for (int i=0; i<S.size(); i++)
+            pointCDistance[i] = Vectors.sqdist(S.get(lastCenter), S.get(i));
 
         for (int i=1; i<k; i++) {
 
@@ -107,7 +109,7 @@ public class MaxPairwiseDist {
                 // Check if the last selected center is closer to p. If so, update closest center distance for p
                 // Note that if j == lastCenter then its updatedDist is set to zero
                 double updatedDist = Vectors.sqdist(S.get(j), S.get(lastCenter));
-                if (pointCDistance[j] == null || updatedDist < pointCDistance[j])
+                if (updatedDist < pointCDistance[j])
                     pointCDistance[j] = updatedDist;
 
                 // Check if p is the farthest point from C (ie if p could be the next center)
