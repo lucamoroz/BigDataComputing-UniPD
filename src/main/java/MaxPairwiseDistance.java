@@ -12,6 +12,7 @@ import org.apache.spark.mllib.linalg.Vectors;
 public class MaxPairwiseDistance {
 
     private static final long SEED = 1234004;
+    private static final Random RANDOM_GENERATOR = new Random(SEED);
 
     public static void main(String[] args) {
 
@@ -126,7 +127,7 @@ public class MaxPairwiseDistance {
         double[] minDistance = new double[size];
 
         // select first point as a center
-        int selected = 0;
+        int selected = RANDOM_GENERATOR.nextInt(inputPoints.size());
         selectedPoints.add(inputPoints.get(selected));
 
         // initialize the array of min distances as the distance of each point to the first selected center
@@ -162,14 +163,13 @@ public class MaxPairwiseDistance {
      * @return n distinct elements from the list picked at random
      */
     private static <E> List<E> pickNDistinctRandomElements(List<E> list, int n) {
-        Random randomGenerator = new Random(SEED);
         int length = list.size();
 
         if (n > length)
             throw new IllegalArgumentException("Assertion: trying to pick more elements than list size");
 
         for (int i = length - 1; i >= length - n; --i) {
-            Collections.swap(list, i , randomGenerator.nextInt(i + 1));
+            Collections.swap(list, i , RANDOM_GENERATOR.nextInt(i + 1));
         }
         return list.subList(length - n, length);
     }
