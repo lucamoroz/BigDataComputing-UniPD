@@ -59,9 +59,9 @@ public class MaxPairwiseDist {
 
     public static double exactMPD(ArrayList<Vector> S) {
         double maxDist = 0;
-        for (Vector from : S)
-            for (Vector to : S)  {
-                double currDist = Vectors.sqdist(from, to);
+        for (int i=0; i<S.size(); i++)
+            for (int j=i+1; j<S.size(); j++) {
+                double currDist = Vectors.sqdist(S.get(j), S.get(i));
                 if (currDist > maxDist)
                     maxDist = currDist;
             }
@@ -69,7 +69,7 @@ public class MaxPairwiseDist {
     }
 
     public static double twoApproxMPD(ArrayList<Vector> S, int k) {
-        if (k >= S.size())
+        if (k > S.size())
             throw new IllegalArgumentException("Assertion k < |S| failed");
 
         List<Vector> subset = pickNDistinctRandomElements(S, k);
@@ -86,7 +86,7 @@ public class MaxPairwiseDist {
     }
 
     public static ArrayList<Vector> kCenterMPD(ArrayList<Vector> S, int k) {
-        if (k >= S.size())
+        if (k > S.size())
             throw new IllegalArgumentException("Assertion k < |S| failed");
 
         // holds selected centers
@@ -127,7 +127,11 @@ public class MaxPairwiseDist {
 
     private static <E> List<E> pickNDistinctRandomElements(List<E> list, int n) {
         int length = list.size();
-        if (length < n) return null;
+
+        if (n > length)
+            throw new IllegalArgumentException("Assertion n <= list.size() failed");
+        else if (n == length)
+            return list;
 
         for (int i = length - 1; i >= length - n; --i) {
             Collections.swap(list, i , RAND.nextInt(i + 1));
