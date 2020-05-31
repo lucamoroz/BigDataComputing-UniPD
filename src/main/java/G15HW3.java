@@ -6,6 +6,7 @@ import org.apache.spark.mllib.linalg.Vector;
 
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Iterator;
 
 public class G15HW3 {
 
@@ -36,6 +37,54 @@ public class G15HW3 {
         System.out.println("L = " + L);
         System.out.println("Initialization time = " + duration);
 
+    }
+
+    public static void runMapReduce(JavaRDD<Vector> pointsRDD, int k, int L) {
+
+        pointsRDD.mapPartitions((partition) -> kCenterMPD(partition, k));
+
+    }
+
+    /**
+     * Finds k centers using Farthest-First Traversal algorithm
+     * @param inputPoints ArrayList of 2D points represented as Vector
+     * @param k Size of the coreset i.e. the number of centers to pick from the input points.
+     * @return ArrayList of Vector representing the k centers
+     */
+    public static Iterator<Vector> kCenterMPD(Iterator<Vector> inputPoints, int k) {
+        int size = inputPoints.size();
+        ArrayList<Vector> selectedPoints = new ArrayList<>();
+
+        // this array holds the min distance of each point to the selected centers
+        double[] minDistance = new double[size];
+
+        // select first point as a center
+        int selected = RANDOM_GENERATOR.nextInt(inputPoints.size());
+        selectedPoints.add(inputPoints.get(selected));
+
+        // initialize the array of min distances as the distance of each point to the first selected center
+        for (int i=0; i<size; i++)
+            minDistance[i] = Vectors.sqdist(inputPoints.get(selected), inputPoints.get(i));
+
+        // selection of k centers using farthest first traversal algorithm
+        for (int i=1; i<k; i++) {
+            // select point farthest from the selected centers
+            selected = 0;
+            for (int j=0; j<size; j++) {
+                if (minDistance[j] > minDistance[selected])
+                    selected = j;
+            }
+            selectedPoints.add(inputPoints.get(selected));
+
+            // update array of distances of the points to the selected centers
+            for (int j=0; j<size; j++) {
+                double dist = Vectors.sqdist(inputPoints.get(selected), inputPoints.get(j));
+                if (dist < minDistance[j])
+                    minDistance[j] = dist;
+            }
+        }
+
+        return selectedPoints.iterator();
     }
 
     // &&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&
