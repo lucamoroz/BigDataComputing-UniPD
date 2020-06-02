@@ -53,17 +53,14 @@ public class DiversityMaximization {
         // ROUND 1 - Farthest first traversal on each partition
         startTime = System.currentTimeMillis();
 
-        // Force computation
-        ArrayList<Vector> points = new ArrayList<>(
-            pointsRDD.mapPartitions((partition) -> {
-                ArrayList<Vector> partitionList = new ArrayList<>();
-                while (partition.hasNext()) {
-                    partitionList.add(partition.next());
-                }
-
-                return farthestFirstTraversal(partitionList, k).iterator();
-            }).collect()
-        );
+        pointsRDD = pointsRDD.mapPartitions((partition) -> {
+            ArrayList<Vector> partitionList = new ArrayList<>();
+            while (partition.hasNext()) {
+                partitionList.add(partition.next());
+            }
+            return farthestFirstTraversal(partitionList, k).iterator();
+        });
+        assert pointsRDD.count() == k*L;
 
         endTime = System.currentTimeMillis();
         duration = endTime - startTime;
@@ -72,6 +69,7 @@ public class DiversityMaximization {
         // ROUND 2 - 2-approx algorithm
         startTime = System.currentTimeMillis();
 
+        ArrayList<Vector> points = new ArrayList<>(pointsRDD.collect());
         points = runSequential(points, k);
 
         endTime = System.currentTimeMillis();
