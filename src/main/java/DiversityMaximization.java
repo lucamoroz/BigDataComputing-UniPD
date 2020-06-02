@@ -17,7 +17,7 @@ public class DiversityMaximization {
             throw new IllegalArgumentException("USAGE: file_path k L");
         }
 
-        String dataFolderPath = args[0];
+        String inputFilePath = args[0];
         int k = Integer.parseInt(args[1]);
         int L = Integer.parseInt(args[2]);
 
@@ -28,7 +28,7 @@ public class DiversityMaximization {
         long startTime, endTime, duration;
 
         startTime = System.currentTimeMillis();
-        JavaRDD<Vector> inputPoints = sc.textFile(dataFolderPath)
+        JavaRDD<Vector> inputPoints = sc.textFile(inputFilePath)
                 .map(DiversityMaximization::strToVector)
                 .repartition(L)
                 .cache();
