@@ -8,22 +8,30 @@ import java.util.*;
 
 public class DiversityMaximization {
 
-    private final static Random RAND = new Random(123);
+    private static final long SEED = 1234004;
+    private static final Random RANDOM_GENERATOR = new Random(SEED);
 
     public static void main(String... args) {
 
-        long startTime, endTime, duration;
+        if (args.length != 3) {
+            throw new IllegalArgumentException("USAGE: file_path k L");
+        }
 
-        String dataFolderPath = "data/uber-medium.csv";
-        int k = 5;
-        int L = 4;
+        String dataFolderPath = args[0];
+        int k = Integer.parseInt(args[1]);
+        int L = Integer.parseInt(args[2]);
 
         SparkConf conf = new SparkConf(true).setAppName("Homework1 - ClassCount");
         JavaSparkContext sc = new JavaSparkContext(conf);
         sc.setLogLevel("WARN");
 
+        long startTime, endTime, duration;
+
         startTime = System.currentTimeMillis();
-        JavaRDD<Vector> inputPoints = sc.textFile(dataFolderPath).map(DiversityMaximization::strToVector).repartition(L).cache();
+        JavaRDD<Vector> inputPoints = sc.textFile(dataFolderPath)
+                .map(DiversityMaximization::strToVector)
+                .repartition(L)
+                .cache();
         long numPoints = inputPoints.count();
         endTime = System.currentTimeMillis();
         duration = endTime - startTime;
@@ -36,24 +44,25 @@ public class DiversityMaximization {
         ArrayList<Vector> points = runMapReduce(inputPoints, k, L);
 
         double avgDistance = measure(points);
+        System.out.println("Average distance = " + avgDistance);
     }
 
     public static ArrayList<Vector> runMapReduce(JavaRDD<Vector> pointsRDD, int k, int L) {
         long startTime, endTime, duration;
 
-        // ROUND 1 - FFT on each partition
+        // ROUND 1 - Farthest first traversal on each partition
         startTime = System.currentTimeMillis();
 
         // Force computation
-        ArrayList<Vector> pts = new ArrayList<>(
-                pointsRDD.mapPartitions((points) -> {
-                    ArrayList<Vector> S = new ArrayList<>();
-                    while (points.hasNext()) {
-                        S.add(points.next());
-                    }
+        ArrayList<Vector> points = new ArrayList<>(
+            pointsRDD.mapPartitions((partition) -> {
+                ArrayList<Vector> partitionList = new ArrayList<>();
+                while (partition.hasNext()) {
+                    partitionList.add(partition.next());
+                }
 
-                    return FarthestFirstTraversal(S, k).iterator();
-                }).collect()
+                return farthestFirstTraversal(partitionList, k).iterator();
+            }).collect()
         );
 
         endTime = System.currentTimeMillis();
@@ -63,19 +72,66 @@ public class DiversityMaximization {
         // ROUND 2 - 2-approx algorithm
         startTime = System.currentTimeMillis();
 
-        pts = runSequential(pts, k);
+        points = runSequential(points, k);
 
         endTime = System.currentTimeMillis();
         duration = endTime - startTime;
         System.out.println("Runtime of Round 2 = " + duration);
 
-        return pts;
+        return points;
     }
 
+    /**
+     * Finds k points using Farthest-First Traversal algorithm
+     * @param inputPoints ArrayList of 2D points represented as Vector
+     * @param k Size of the coreset i.e. the number of points to pick from the input points.
+     * @return ArrayList of Vector representing the k points
+     */
+    public static ArrayList<Vector> farthestFirstTraversal(ArrayList<Vector> inputPoints, int k) {
+        int size = inputPoints.size();
+        ArrayList<Vector> selectedPoints = new ArrayList<>();
+
+        // this array holds the min distance of each point to the selected centers
+        double[] minDistance = new double[size];
+
+        // select first point as a center
+        int selected = RANDOM_GENERATOR.nextInt(inputPoints.size());
+        selectedPoints.add(inputPoints.get(selected));
+
+        // initialize the array of min distances as the distance of each point to the first selected center
+        for (int i=0; i<size; i++)
+            minDistance[i] = Vectors.sqdist(inputPoints.get(selected), inputPoints.get(i));
+
+        // selection of k centers using farthest first traversal algorithm
+        for (int i=1; i<k; i++) {
+            // select point farthest from the selected centers
+            selected = 0;
+            for (int j=0; j<size; j++) {
+                if (minDistance[j] > minDistance[selected])
+                    selected = j;
+            }
+            selectedPoints.add(inputPoints.get(selected));
+
+            // update array of distances of the points to the selected centers
+            for (int j=0; j<size; j++) {
+                double dist = Vectors.sqdist(inputPoints.get(selected), inputPoints.get(j));
+                if (dist < minDistance[j])
+                    minDistance[j] = dist;
+            }
+        }
+
+        return selectedPoints;
+    }
+
+    /**
+     * Computes the average distance between all pairs of points.
+     * @param pointSet A set of points represented as ArrayList<Vector>
+     * @return The average distance
+     */
     public static double measure(ArrayList<Vector> pointSet) {
         double tot = 0;
         for (int i = 0; i < pointSet.size(); i++) {
-            for (int j = i; j < pointSet.size(); j++)
+            for (int j = i+1; j < pointSet.size(); j++)
                 tot += Math.sqrt(Vectors.sqdist(pointSet.get(i), pointSet.get(j)));
         }
 
@@ -138,46 +194,6 @@ public class DiversityMaximization {
         return result;
 
     } // END runSequential
-
-    public static ArrayList<Vector> FarthestFirstTraversal(ArrayList<Vector> S, int k) {
-        if (k > S.size())
-            throw new IllegalArgumentException("Assertion k < |S| failed");
-
-        // holds selected centers
-        ArrayList<Vector> C = new ArrayList<>();
-
-        // randomly select the first center
-        int lastCenter = RAND.nextInt(S.size());
-        C.add(S.get(lastCenter));
-
-        double[] pointCDistance = new double[S.size()];
-        for (int i = 0; i < S.size(); i++)
-            pointCDistance[i] = Vectors.sqdist(S.get(lastCenter), S.get(i));
-
-        for (int i = 1; i < k; i++) {
-
-            double currMaxDistance = -1;
-            int nextCenter = -1;
-
-            for (int j = 0; j < S.size(); j++) {
-                // Check if the last selected center is closer to p. If so, update closest center distance for p
-                // Note that if j == lastCenter then its updatedDist is set to zero
-                double updatedDist = Vectors.sqdist(S.get(j), S.get(lastCenter));
-                if (updatedDist < pointCDistance[j])
-                    pointCDistance[j] = updatedDist;
-
-                // Check if p is the farthest point from C (ie if p could be the next center)
-                if (pointCDistance[j] > currMaxDistance) {
-                    currMaxDistance = pointCDistance[j];
-                    nextCenter = j;
-                }
-            }
-
-            C.add(S.get(nextCenter));
-            lastCenter = nextCenter;
-        }
-        return C;
-    }
 
     public static org.apache.spark.mllib.linalg.Vector strToVector(String str) {
         String[] tokens = str.split(",");
