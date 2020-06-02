@@ -21,7 +21,7 @@ public class DiversityMaximization {
         int k = Integer.parseInt(args[1]);
         int L = Integer.parseInt(args[2]);
 
-        SparkConf conf = new SparkConf(true).setAppName("Homework1 - ClassCount");
+        SparkConf conf = new SparkConf(true).setAppName("G15HW3 - diversity maximization");
         JavaSparkContext sc = new JavaSparkContext(conf);
         sc.setLogLevel("WARN");
 
