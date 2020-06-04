@@ -2,8 +2,8 @@
   <configuration default="false" name="DiversityMaximization" type="Application" factoryName="Application">
     <option name="MAIN_CLASS_NAME" value="DiversityMaximization" />
     <module name="BigDataComputing-UniPD.main" />
-    <option name="PROGRAM_PARAMETERS" value="data/uber-small.csv 15 4" />
-    <option name="VM_PARAMETERS" value="-Dspark.master=&quot;local[*]&quot;" />
+    <option name="PROGRAM_PARAMETERS" value="data/uber-small.csv 30 4" />
+    <option name="VM_PARAMETERS" value="-Dspark.master=&quot;local[*]&quot; -ea" />
     <method v="2">
       <option name="Make" enabled="true" />
     </method>

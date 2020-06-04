@@ -60,7 +60,8 @@ public class DiversityMaximization {
             }
             return farthestFirstTraversal(partitionList, k).iterator();
         });
-        assert pointsRDD.count() == k*L;
+        long count = pointsRDD.count();
+        assert count == k*L;
 
         endTime = System.currentTimeMillis();
         duration = endTime - startTime;
